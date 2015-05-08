@@ -2,6 +2,3 @@ PKG lwt
 PKG lwt.unix
 PKG cohttp
 PKG cohttp.lwt
-
-S /Users/jyc/.opam/4.02.1/lib/cohttp/
-CMT /Users/jyc/.opam/4.02.1/lib/cohttp/
