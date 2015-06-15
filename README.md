@@ -8,6 +8,8 @@ It compiles with `opam install lwt cohttp` as of May 7, 2015. I will try to keep
 it up-to-date, but I can't make any guarantees. Hopefully by the time it becomes
 out of date, there will be better documentation.
 
+To build, use `ocamlbuild -use-ocamlfind main.native`.
+
 # Tips
 
 - [Merlin](https://github.com/the-lambda-church/merlin) is extremely helpful
