@@ -4,9 +4,13 @@ that by uploading it here, people who find themselves in the same situation of
 having no idea how to start will at least be able to start out a little further
 along than I did.
 
-It compiles with `opam install lwt cohttp` as of May 7, 2015. I will try to keep
-it up-to-date, but I can't make any guarantees. Hopefully by the time it becomes
-out of date, there will be better documentation.
+It compiles with `opam install lwt cohttp xmlm` as of August 12, 2015. I will
+try to keep it up-to-date, but I can't make any guarantees. Hopefully by the
+time it becomes out of date, there will be better documentation.
+
+You also need to install [ppx_sexp](https://bitbucket.org/jyc/ppx_sexp) and
+[sxmlm](https://bitbucket.org/jyc/sxmlm) to use the rendering methods I've
+included, although those can easily be excised.
 
 To build, use `ocamlbuild -use-ocamlfind main.native`.
 
