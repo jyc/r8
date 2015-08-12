@@ -2,3 +2,8 @@ PKG lwt
 PKG lwt.unix
 PKG cohttp
 PKG cohttp.lwt
+PKG xmlm
+PKG re
+
+PKG ppx_sexp
+PKG sxmlm
