@@ -1,71 +1,65 @@
 open Lwt
 open Cohttp_lwt_unix
 
-let body_of_string s =
-  `String s
+let ( << ) = Util.( << )
 
 let pack_string s =
-  (Cohttp.Transfer.Fixed (Int64.of_int (String.length s)), body_of_string s)
+  (Cohttp.Transfer.Fixed (Int64.of_int (String.length s)), `String s)
 
-let html_of_sxml s =
-  let buf = Buffer.create 1024 in
-  let out = Xmlm.make_output ~indent:(Some 2) ~decl:false (`Buffer buf) in
-  let id x = x in
-  let () = begin
-    Buffer.add_string buf "<!DOCTYPE html>\n" ;
-    Xmlm.output_doc_tree id out (None, Sxmlm.xmlm_of_sexp s)
-  end in
-  Buffer.contents buf
+let render =
+  pack_string << Util.html_of_sxml
 
-let render_index () =
-  [%sexp
-    (html (+ (lang "en"))
-       (head
-          (title "Hello, world!"))
-       (body
-          (h1 "Powered by S-expressions.")
-          (p "You bet.")))
-  ]
-
-let render_hello name =
-  [%sexp
-    (html (+ (lang "en"))
-       (head
-          (title "Hello there!"))
-       (body
-          (h1 [%in `String ("Hello, " ^ name ^ "!")])
-          (p "Good to see you again.")))
-  ]
-
-let slash_re = Re.compile (
-    let open Re in
-    char '/'
-  )
+let return_html status (encoding, body) =
+  let mime_type = "text/html" in
+  let headers = Cohttp.Header.add_opt None "content-type" mime_type in
+  let res = Cohttp.Response.make ~status ~encoding ~headers () in
+  return (res, body)
 
 let main port =
   let callback conn req body = 
-    let uri = Cohttp.Request.uri req in
-    let (encoding, body) =
-      (* pos:1 to skip the beginning / . *)
-      match Uri.path uri |> Re.split ~pos:1 slash_re with
-      | ["test"] ->
-        pack_string "warning! experimental testing procedures in place."
-      | ["hello"] ->
-        let name = begin match Uri.get_query_param uri "name" with
-          | Some x -> x
-          | None -> "world"
-        end in
-        render_hello name |> html_of_sxml |> pack_string
-      | ["hello2"; name] ->
-        render_hello (Uri.pct_decode name) |> html_of_sxml |> pack_string
-      | [] ->
-        render_index () |> html_of_sxml |> pack_string
-      | _ ->
-        pack_string "hello, world!" in
-    let mime_type = "text/html" in
-    let headers = Cohttp.Header.add_opt None "content-type" mime_type in
-    let res = Cohttp.Response.make ~status:`OK ~encoding ~headers () in
-    return (res, body) in
+    Lwt.catch
+      (fun () ->
+         let ts = Sys.time () in
+         let meth = Cohttp.Request.meth req in
+         let uri = Cohttp.Request.uri req in
+         let path = Uri.path uri in 
+         begin match meth, path |> Util.parts_of_path with
+           | `GET, ["form"] ->
+             Template.form ()
+             |> render 
+             |> return_html `OK
+           | `POST, ["form"] ->
+             body |> Cohttp_lwt_body.to_string >>=
+             fun s ->
+             let params = Uri.query_of_encoded s in
+             let name = Some "**** this company!" in
+             let message = Some "I quit!" in
+             begin match name, message with
+               | Some name, Some message ->
+                 Template.success name message
+                 |> render
+                 |> return_html `OK
+               | _ ->
+                 pack_string "invalid form submission"
+                 |> return_html `Bad_request
+             end
+           | `GET, [] ->
+             Template.index (Sys.time () -. ts) ()
+             |> render
+             |> return_html `OK
+           | `GET, "static" :: _ ->
+             (* Get rid of the leading /. Paths will look like static/... .*)
+             let fname = String.sub path 1 (String.length path - 1) in
+             Server.respond_file ~fname ()
+           | _ ->
+             pack_string "Not found"
+             |> return_html `Not_found
+         end)
+      (fun e -> 
+         let () =
+           Printf.printf "Internal error: %s\n%!" (Printexc.to_string e)
+         in Lwt.fail e)
+  in
   let server = Server.make callback () in
   Server.create ~mode:(`TCP (`Port port)) server
 

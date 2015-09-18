@@ -1,3 +1,6 @@
+S .
+B _build/
+
 PKG lwt
 PKG lwt.unix
 PKG cohttp

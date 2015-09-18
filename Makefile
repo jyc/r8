@@ -1,6 +1,11 @@
-.PHONY: all
+.PHONY: all clean
+
+SOURCES=main.ml template.ml util.ml
 
 all: main.native 
 
-main.native: main.ml
+main.native: $(SOURCES)
 	ocamlbuild -use-ocamlfind main.native
+
+clean:
+	ocamlbuild -clean
