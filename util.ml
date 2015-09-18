@@ -12,8 +12,14 @@ module ConStr = struct
   let cons a b =
     Pair (a, b)
 
-  let concat sep xs =
-    let cons' = (fun a x -> cons (Cell sep) (cons x a)) in
+  let concat ?sep xs =
+    let cons' = 
+      match sep with
+      | Some s ->
+        (fun a x -> cons (Cell s) (cons x a))
+      | None ->
+        (fun a x -> cons x a)
+    in
     match List.fold_left cons' Nil (List.rev xs) with
     | Pair (a, b) -> b
     | Cell _ -> failwith "ConStr.concat: Invalid state."
@@ -63,15 +69,44 @@ let string_of_xmlm (x : frag) =
     match x with
     | `Data s -> ConStr.of_string s
     | `El  (((ns, tag), attrs), children) ->
-      let attrs' = List.map (ConStr.of_string << string_of_attr) attrs |> ConStr.concat " " in
+      let attrs' = List.map (ConStr.of_string << string_of_attr) attrs |> ConStr.concat ~sep:" " in
       let tag' = string_of_name ns tag |> ConStr.of_string in
-      let children' = List.map string_of_xmlm' children |> ConStr.concat "" in
+      let children' = List.map string_of_xmlm' children |> ConStr.concat in
       match attrs, children with
-      | [] , [] -> ConStr.concat "" [lt; tag'; sgt] (* <tag /> *)
-      | _, [] -> ConStr.concat "" [lt; tag'; sp; attrs'; sp; sgt] (* <tag attrs /> *)
-      | [] , _ -> ConStr.concat "" [lt; tag'; gt; children'; lts; tag'; gt] (* <tag>children</tag> *)
-      | _, _ -> ConStr.concat "" [lt; tag'; sp; attrs'; gt; children'; lts; tag'; gt] (* <tag attrs />children</tag> *)
+      | [] , [] -> ConStr.concat [lt; tag'; sgt] (* <tag /> *)
+      | _, [] -> ConStr.concat [lt; tag'; sp; attrs'; sp; sgt] (* <tag attrs /> *)
+      | [] , _ -> ConStr.concat [lt; tag'; gt; children'; lts; tag'; gt] (* <tag>children</tag> *)
+      | _, _ -> ConStr.concat [lt; tag'; sp; attrs'; gt; children'; lts; tag'; gt] (* <tag attrs />children</tag> *)
   in string_of_xmlm' x |> ConStr.to_string
+
+(*
+let string_of_xmlm (x : frag) =
+  let rec string_of_xmlm' x =
+    let string_of_name ns tag =
+      match ns, tag with
+      | _, "" -> invalid_arg "Names cannot have empty local elements."
+      | "", _ -> tag
+      | _ -> Printf.sprintf "%s:%s" ns tag
+    in
+    let rec string_of_attr  ((ns, tag), value) =
+      if value = "" then
+        Printf.sprintf "%s" (string_of_name ns tag)
+      else
+        Printf.sprintf "%s=\"%s\""  (string_of_name ns tag) value
+    in
+    match x with
+    | `Data s -> s
+    | `El  (((ns, tag), attrs), children) ->
+      let attrs' = List.map (string_of_attr) attrs |> String.concat " " in
+      let tag' = string_of_name ns tag in
+      let children' = List.map string_of_xmlm' children |> String.concat "" in
+      match attrs, children with
+      | [] , [] -> Printf.sprintf "<%s />" tag'
+      | _, [] -> Printf.sprintf "<%s %s />" tag' attrs'
+      | [] , _ -> Printf.sprintf "<%s>%s</%s>" tag' children' tag'
+      | _, _ -> Printf.sprintf "<%s %s />%s</%s>" tag' attrs' children' tag'
+  in string_of_xmlm' x
+*)
 
 let html_of_sxml s =
   string_of_xmlm (Sxmlm.xmlm_of_sexp s)
