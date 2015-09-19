@@ -76,6 +76,19 @@ let string_of_xmlm (x : frag) =
 let html_of_sxml s =
   string_of_xmlm (Sxmlm.xmlm_of_sexp s)
 
+(* (* Xmlm-based encoding of SXML into HTML. Works very well but is too smart 
+      and escapes things, when we'd prefer to be able to pass them in raw. *)
+let html_of_sxml s =
+  let buf = Buffer.create 1024 in
+  let out = Xmlm.make_output ~indent:None ~decl:false (`Buffer buf) in
+  let id x = x in
+  let () = begin
+    Buffer.add_string buf "<!DOCTYPE html>\n" ;
+    Xmlm.output_doc_tree id out (None, Sxmlm.xmlm_of_sexp s)
+  end in
+  Buffer.contents buf
+*)
+
 let string_of_char = String.make 1
 let rec string_of_atom (x : PpxSexp.sexp) : string =
   match x with
