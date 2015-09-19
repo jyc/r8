@@ -10,14 +10,15 @@ module ConStr = struct
     | Nil
 
   let cons a b =
-    Pair (a, b)
+    Pair(a, b)
 
-  let concat sep xs =
-    let cons' = (fun a x -> cons (Cell sep) (cons x a)) in
-    match List.fold_left cons' Nil (List.rev xs) with
-    | Pair (a, b) -> b
-    | Cell _ -> failwith "ConStr.concat: Invalid state."
-    | Nil -> Nil
+  let concat ?sep xs =
+    let cons' = 
+      match sep with
+      | Some s -> (fun a x -> cons (Cell s) (cons x a))
+      | None -> (fun a x -> cons x a)
+    in
+    List.fold_left cons' Nil (List.rev xs)
 
   let of_string s =
     Cell s
@@ -39,55 +40,41 @@ module ConStr = struct
 
 end
 
-(* TODO: Compare performance with plain string implementation. *)
+let rec constr_of_xmlm x =
+  let lt = ConStr.of_string "<" in
+  let gt = ConStr.of_string ">" in
+  let lts = ConStr.of_string "</" in
+  let sgt = ConStr.of_string "/>" in
+  let sp = ConStr.of_string " " in
+  let string_of_name ns tag =
+    match ns, tag with
+    | _, "" -> invalid_arg "Names cannot have empty local elements."
+    | "", _ -> tag
+    | _ -> Printf.sprintf "%s:%s" ns tag
+  in
+  let rec string_of_attr ((ns, tag), value) =
+    if value = "" then
+      Printf.sprintf "%s" (string_of_name ns tag)
+    else
+      Printf.sprintf "%s=\"%s\"" (string_of_name ns tag) value
+  in
+  match x with
+  | `Data s -> ConStr.of_string s
+  | `El  (((ns, tag), attrs), children) ->
+    let attrs' = List.map (ConStr.of_string << string_of_attr) attrs |> ConStr.concat ~sep:" " in
+    let tag' = string_of_name ns tag |> ConStr.of_string in
+    let children' = List.map constr_of_xmlm children |> ConStr.concat in
+    match attrs, children with
+    | [] , [] -> ConStr.concat [lt; tag'; sgt] (* <tag /> *)
+    | _, [] -> ConStr.concat [lt; tag'; sp; attrs'; sp; sgt] (* <tag attrs /> *)
+    | [] , _ -> ConStr.concat [lt; tag'; gt; children'; lts; tag'; gt] (* <tag>children</tag> *)
+    | _, _ -> ConStr.concat [lt; tag'; sp; attrs'; gt; children'; lts; tag'; gt] (* <tag attrs />children</tag> *)
 
 let string_of_xmlm (x : frag) =
-  let rec string_of_xmlm' x =
-    let lt = ConStr.of_string "<" in
-    let gt = ConStr.of_string ">" in
-    let lts = ConStr.of_string "</" in
-    let sgt = ConStr.of_string "/>" in
-    let sp = ConStr.of_string " " in
-    let string_of_name ns tag =
-      match ns, tag with
-      | _, "" -> invalid_arg "Names cannot have empty local elements."
-      | "", _ -> tag
-      | _ -> Printf.sprintf "%s:%s" ns tag
-    in
-    let rec string_of_attr  ((ns, tag), value) =
-      if value = "" then
-        Printf.sprintf "%s" (string_of_name ns tag)
-      else
-        Printf.sprintf "%s=\"%s\""  (string_of_name ns tag) value
-    in
-    match x with
-    | `Data s -> ConStr.of_string s
-    | `El  (((ns, tag), attrs), children) ->
-      let attrs' = List.map (ConStr.of_string << string_of_attr) attrs |> ConStr.concat " " in
-      let tag' = string_of_name ns tag |> ConStr.of_string in
-      let children' = List.map string_of_xmlm' children |> ConStr.concat "" in
-      match attrs, children with
-      | [] , [] -> ConStr.concat "" [lt; tag'; sgt] (* <tag /> *)
-      | _, [] -> ConStr.concat "" [lt; tag'; sp; attrs'; sp; sgt] (* <tag attrs /> *)
-      | [] , _ -> ConStr.concat "" [lt; tag'; gt; children'; lts; tag'; gt] (* <tag>children</tag> *)
-      | _, _ -> ConStr.concat "" [lt; tag'; sp; attrs'; gt; children'; lts; tag'; gt] (* <tag attrs />children</tag> *)
-  in string_of_xmlm' x |> ConStr.to_string
+  constr_of_xmlm x |> ConStr.to_string
 
 let html_of_sxml s =
   string_of_xmlm (Sxmlm.xmlm_of_sexp s)
-
-(* (* Xmlm-based encoding of SXML into HTML. Works very well but is too smart 
-      and escapes things, when we'd prefer to be able to pass them in raw. *)
-let html_of_sxml s =
-  let buf = Buffer.create 1024 in
-  let out = Xmlm.make_output ~indent:None ~decl:false (`Buffer buf) in
-  let id x = x in
-  let () = begin
-    Buffer.add_string buf "<!DOCTYPE html>\n" ;
-    Xmlm.output_doc_tree id out (None, Sxmlm.xmlm_of_sexp s)
-  end in
-  Buffer.contents buf
-*)
 
 let string_of_char = String.make 1
 let rec string_of_atom (x : PpxSexp.sexp) : string =
