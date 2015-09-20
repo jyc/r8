@@ -52,7 +52,7 @@ let form () =
           (input ((@) (type' "text") (name "name"))))
        (label
           (h2 "Message")
-          (textarea ((@) (rows "8")) ""))
+          (textarea ((@) (name "message") (rows "8")) ""))
        [br]
        (input ((@) (type' "submit") (style "margin-top: 1.125em") (value "Submit"))))]
   |> base ~links

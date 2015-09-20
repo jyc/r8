@@ -18,7 +18,16 @@ module ConStr = struct
       | Some s -> (fun a x -> cons (Cell s) (cons x a))
       | None -> (fun a x -> cons x a)
     in
-    List.fold_left cons' Nil (List.rev xs)
+    let cs = List.fold_left cons' Nil (List.rev xs) in
+    (* We need to strip the leading separator if we added one. *)
+    match sep with
+    | Some _ ->
+      begin match cs with
+        | Nil -> Nil
+        | Pair(a, b) -> b
+        | _ -> failwith "concat: Invalid state."
+      end
+    | None -> cs
 
   let of_string s =
     Cell s
@@ -54,7 +63,7 @@ let rec constr_of_xmlm x =
   in
   let rec string_of_attr ((ns, tag), value) =
     if value = "" then
-      Printf.sprintf "%s" (string_of_name ns tag)
+      string_of_name ns tag
     else
       Printf.sprintf "%s=\"%s\"" (string_of_name ns tag) value
   in
@@ -68,7 +77,7 @@ let rec constr_of_xmlm x =
     | [] , [] -> ConStr.concat [lt; tag'; sgt] (* <tag /> *)
     | _, [] -> ConStr.concat [lt; tag'; sp; attrs'; sp; sgt] (* <tag attrs /> *)
     | [] , _ -> ConStr.concat [lt; tag'; gt; children'; lts; tag'; gt] (* <tag>children</tag> *)
-    | _, _ -> ConStr.concat [lt; tag'; sp; attrs'; gt; children'; lts; tag'; gt] (* <tag attrs />children</tag> *)
+    | _, _ -> ConStr.concat [lt; tag'; sp; attrs'; gt; children'; lts; tag'; gt] (* <tag attrs>children</tag> *)
 
 let string_of_xmlm (x : frag) =
   constr_of_xmlm x |> ConStr.to_string

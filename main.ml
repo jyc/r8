@@ -15,6 +15,17 @@ let return_html status (encoding, body) =
   let res = Cohttp.Response.make ~status ~encoding ~headers () in
   return (res, body)
 
+let rec get_param ps k =
+  match ps with
+  | (k', v) :: ps' ->
+    if k' = k then Some (String.concat "," v) else get_param ps' k
+  | [] -> None
+
+let rec get_param_exn ps k =
+  match get_param ps k with
+  | Some x -> return x
+  | None -> Lwt.fail_with "No param found."
+
 let main port =
   let callback conn req body = 
     Lwt.catch
@@ -32,17 +43,12 @@ let main port =
              body |> Cohttp_lwt_body.to_string >>=
              fun s ->
              let params = Uri.query_of_encoded s in
-             let name = Some "**** this company!" in
-             let message = Some "I quit!" in
-             begin match name, message with
-               | Some name, Some message ->
-                 Template.success name message
-                 |> render
-                 |> return_html `OK
-               | _ ->
-                 pack_string "invalid form submission"
-                 |> return_html `Bad_request
-             end
+             let param = get_param_exn params in
+             param "name" >>= fun name ->
+             param "message" >>= fun message ->
+             Template.success name message
+             |> render
+             |> return_html `OK
            | `GET, [] ->
              Template.index (Sys.time () -. ts) ()
              |> render
@@ -57,7 +63,7 @@ let main port =
          end)
       (fun e -> 
          let () =
-           Printf.printf "Internal error: %s\n%!" (Printexc.to_string e)
+           Printf.printf "Internal error: %s\n%!" (Printexc.to_string e) 
          in Lwt.fail e)
   in
   let server = Server.make callback () in
