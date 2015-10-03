@@ -1,6 +1,9 @@
+open Data
+
 let links = [
   ("/", "Home");
-  ("/form", "Form")
+  ("/form", "Form");
+  ("/submitted", "Submitted");
 ]
 
 let base ?(head=`List []) ~links body =
@@ -55,4 +58,20 @@ let form () =
           (textarea ((@) (name "message") (rows "8")) ""))
        [br]
        (input ((@) (type' "submit") (style "margin-top: 1.125em") (value "Submit"))))]
+  |> base ~links
+
+let submitted ls =
+  [%sexp
+    (h1 "Submitted responses")
+    [%spls
+      ls
+      |> List.map
+        (fun {Entry.name; message} ->
+           [%sexp
+             (div ((@) (style "margin-bottom: 3em;"))
+                (h2 "Name")
+                (p [%string name])
+                (h2 "Message")
+                (p [%string message]))
+           ])]]
   |> base ~links

@@ -1,6 +1,6 @@
 .PHONY: all clean
 
-SOURCES=main.ml template.ml util.ml
+SOURCES=main.ml template.ml util.ml data.ml
 
 all: main.native 
 

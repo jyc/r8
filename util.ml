@@ -69,14 +69,14 @@ let rec constr_of_xmlm x =
   in
   match x with
   | `Data s -> ConStr.of_string s
-  | `El  (((ns, tag), attrs), children) ->
+  | `El (((ns, tag), attrs), children) ->
     let attrs' = List.map (ConStr.of_string << string_of_attr) attrs |> ConStr.concat ~sep:" " in
     let tag' = string_of_name ns tag |> ConStr.of_string in
     let children' = List.map constr_of_xmlm children |> ConStr.concat in
     match attrs, children with
-    | [] , [] -> ConStr.concat [lt; tag'; sgt] (* <tag /> *)
+    | [], [] -> ConStr.concat [lt; tag'; sgt] (* <tag /> *)
     | _, [] -> ConStr.concat [lt; tag'; sp; attrs'; sp; sgt] (* <tag attrs /> *)
-    | [] , _ -> ConStr.concat [lt; tag'; gt; children'; lts; tag'; gt] (* <tag>children</tag> *)
+    | [], _ -> ConStr.concat [lt; tag'; gt; children'; lts; tag'; gt] (* <tag>children</tag> *)
     | _, _ -> ConStr.concat [lt; tag'; sp; attrs'; gt; children'; lts; tag'; gt] (* <tag attrs>children</tag> *)
 
 let string_of_xmlm (x : frag) =

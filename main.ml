@@ -1,5 +1,6 @@
 open Lwt
 open Cohttp_lwt_unix
+open Data
 
 let ( << ) = Util.( << )
 
@@ -27,6 +28,7 @@ let rec get_param_exn ps k =
   | None -> Lwt.fail_with "No param found."
 
 let main port =
+  let db = {Database.records=[]} in
   let callback conn req body = 
     Lwt.catch
       (fun () ->
@@ -46,7 +48,14 @@ let main port =
              let param = get_param_exn params in
              param "name" >>= fun name ->
              param "message" >>= fun message ->
+             let open Database in
+             let () = db.records <- {Entry.name=name; message=message} :: db.records in
              Template.success name message
+             |> render
+             |> return_html `OK
+           | `GET, ["submitted"] ->
+             let open Database in
+             Template.submitted db.records
              |> render
              |> return_html `OK
            | `GET, [] ->
